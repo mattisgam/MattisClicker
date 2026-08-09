@@ -180,7 +180,11 @@ class PynputBackend:
         )
         self.mouse_listener = mouse.Listener(on_click=self._on_mouse)
         self.key_listener.start()
-        self.mouse_listener.start()
+        try:
+            self.mouse_listener.start()
+        except Exception:
+            self.key_listener.stop()
+            raise
 
     def stop(self):
         for listener in (self.key_listener, self.mouse_listener):
@@ -257,6 +261,12 @@ class EvdevBackend:
                 name="MattisClicker",
             )
         except Exception:
+            for device in self.devices:
+                try:
+                    device.close()
+                except Exception:
+                    pass
+            self.devices = []
             raise RuntimeError(
                 "Kunde inte skapa virtuell mus (UInput).\n"
                 "Du behöver sudo eller gruppen 'uinput':\n\n"
@@ -287,7 +297,7 @@ class EvdevBackend:
                 if name is None:
                     continue
                 self.app.on_input(name, event.value == 1)
-        except OSError:
+        except (OSError, ValueError):
             pass
 
     def click(self, output_name):
@@ -310,23 +320,35 @@ class MattisClickerApp:
 
         config = self._load_config()
 
-        self.cps_var = tk.IntVar(value=config.get("cps", 10))
-        self.output_var = tk.StringVar(value=config.get("output", "Left"))
-        self.hold_mode_var = tk.BooleanVar(value=config.get("hold", True))
+        self.cps_var = tk.IntVar(value=self._load_int(config.get("cps"), 10, CPS_MIN, CPS_MAX))
+        output = config.get("output", "Left")
+        self.output_var = tk.StringVar(value=output if output in OUTPUT_OPTIONS else "Left")
+        self.hold_mode_var = tk.BooleanVar(value=bool(config.get("hold", True)))
         self.status_var = tk.StringVar(value="Inaktiv")
         self.info_var = tk.StringVar(value="")
 
-        self.binding = config.get("binding", "f6")
+        binding = config.get("binding", "f6")
+        self.binding = binding if isinstance(binding, str) and binding else "f6"
         self.held_mods = set()
         self.active_key = None
         self.clicking = threading.Event()
+        self._click_lock = threading.Lock()
         self.click_thread = None
         self.backend = None
         self.recording = False
         self.record_mods = set()
         self.record_timer = None
 
+        # Enkla attribut som bakgrundstrådar (evdev/pynput/klick) får läsa –
+        # tkinter-variabler får bara röras av huvudtråden.
+        self.runtime_cps = self.cps_var.get()
+        self.runtime_output = self.output_var.get().lower()
+        self.runtime_hold = bool(self.hold_mode_var.get())
+        for var in (self.cps_var, self.output_var, self.hold_mode_var):
+            var.trace_add("write", self._sync_runtime_vars)
+
         self._build_ui()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self._start_backend()
 
     def _config_path(self):
@@ -357,6 +379,32 @@ class MattisClickerApp:
                 )
         except Exception:
             pass
+
+    @staticmethod
+    def _load_int(value, default, lo, hi):
+        """Läser ett heltal från config och ser till att det ligger i [lo, hi]."""
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            return default
+        return max(lo, min(hi, value))
+
+    def _ui(self, fn):
+        """Kör en UI-uppdatering på huvudtråden via after() – säker att anropa
+        från bakgrundstrådar, och tyst om fönstret redan stängts."""
+        try:
+            self.root.after(0, fn)
+        except tk.TclError:
+            pass
+
+    def _sync_runtime_vars(self, *_):
+        """Speglar tkinter-variabler till enkla attribut som andra trådar får läsa."""
+        try:
+            self.runtime_cps = int(self.cps_var.get())
+        except (tk.TclError, ValueError):
+            pass
+        self.runtime_output = self.output_var.get().lower()
+        self.runtime_hold = bool(self.hold_mode_var.get())
 
     def _setup_style(self):
         style = ttk.Style(self.root)
@@ -639,11 +687,13 @@ class MattisClickerApp:
             self.cps_value_label.config(text=f"{self.cps_var.get()} CPS")
 
     def _sync_cps_from_entry(self):
+        if not hasattr(self, "cps_spin"):
+            return
         try:
             value = int(self.cps_spin.get())
-            self.cps_var.set(max(CPS_MIN, min(CPS_MAX, value)))
         except ValueError:
-            pass
+            value = CPS_MIN
+        self.cps_var.set(max(CPS_MIN, min(CPS_MAX, value)))
         self._cps_label_update()
 
     def _start_backend(self):
@@ -656,10 +706,12 @@ class MattisClickerApp:
             else:
                 try:
                     self.backend.start()
-                    self._on_backend_ready()
-                    return
                 except Exception as error:
                     errors.append(str(error))
+                    self._stop_backend()
+                else:
+                    self._on_backend_ready()
+                    return
         try:
             self.backend = PynputBackend(self)
         except Exception as error:
@@ -667,37 +719,64 @@ class MattisClickerApp:
         else:
             try:
                 self.backend.start()
-                self._on_backend_ready()
-                return
             except Exception as error:
                 errors.append(str(error))
+                self._stop_backend()
+            else:
+                self._on_backend_ready()
+                return
         self.status_var.set("Ingen åtkomst till enheter!")
         self.info_var.set("")
-        messagebox.showerror("MattisClicker", "\n\n".join(errors))
+        try:
+            messagebox.showerror("MattisClicker", "\n\n".join(errors))
+        except Exception:
+            pass
+
+    def _stop_backend(self):
+        try:
+            self.backend.stop()
+        except Exception:
+            pass
 
     def _on_backend_ready(self):
         self.status_var.set("Tryck på " + display_binding(self.binding))
         if isinstance(self.backend, EvdevBackend):
             self.info_var.set("Global (läser hela systemet – fungerar i alla appar/spel)")
-        else:
+        elif sys.platform.startswith("linux"):
             self.info_var.set("X11-läge: aktiveringen hörs bara när fönstret är i fokus")
+        else:
+            self.info_var.set("Global – aktiveringen hörs i alla appar (Windows/macOS)")
 
     # ---- Inspelning av aktiveringsknapp ----
 
     def _start_recording(self):
         self.recording = True
         self.record_mods = set()
+        if self.record_timer:
+            try:
+                self.root.after_cancel(self.record_timer)
+            except tk.TclError:
+                pass
+        self.record_timer = self.root.after(20000, self._stop_recording)
+        self._ui(self._recording_ui)
+
+    def _recording_ui(self):
         self.status_var.set("Tryck på ny aktiveringsknapp... (Esc avbryter)")
         self.bind_button.config(text="Lyssnar...")
-        self.record_timer = self.root.after(20000, self._stop_recording)
 
     def _stop_recording(self, cancelled=True):
         if not self.recording:
             return
         self.recording = False
         if self.record_timer:
-            self.root.after_cancel(self.record_timer)
+            try:
+                self.root.after_cancel(self.record_timer)
+            except tk.TclError:
+                pass
             self.record_timer = None
+        self._ui(lambda: self._finish_recording(cancelled))
+
+    def _finish_recording(self, cancelled):
         self.bind_button_text()
         if cancelled:
             self.status_var.set("Inspelning avbruten")
@@ -711,7 +790,7 @@ class MattisClickerApp:
             self.binding = key_name
         self._save_config()
         self._stop_recording(cancelled=False)
-        self.status_var.set(f"Bunden: {display_binding(self.binding)}")
+        self._ui(lambda: self.status_var.set(f"Bunden: {display_binding(self.binding)}"))
 
     def on_input(self, name, pressed):
         """Alla tangent- och musevenighter från backenden hamnar här."""
@@ -752,7 +831,7 @@ class MattisClickerApp:
     def _maybe_stop_due_to_combo(self):
         """I håll-ned-läge: stoppa klicka om kombinationen inte matchar längre.
         I toggle-läge (gångväxla) får modifier-lyssning aldrig avbryta."""
-        if not self.hold_mode_var.get():
+        if not self.runtime_hold:
             return
         mods, bind_key = parse_binding(self.binding)
         if self.clicking.is_set() and bind_key:
@@ -760,7 +839,7 @@ class MattisClickerApp:
                 self._stop_clicking()
 
     def _on_activation(self, pressed):
-        if self.hold_mode_var.get():
+        if self.runtime_hold:
             if pressed and not self.clicking.is_set():
                 self._start_clicking()
             elif not pressed and self.clicking.is_set():
@@ -773,23 +852,38 @@ class MattisClickerApp:
                     self._start_clicking()
 
     def _start_clicking(self):
-        if self.clicking.is_set() or not self.backend:
+        if not self.backend:
             return
-        self.clicking.set()
-        self.status_var.set(f"Klickar... ({self.cps_var.get()} CPS)")
-        self._set_lamp(OK)
+        with self._click_lock:
+            if self.clicking.is_set():
+                return
+            self.clicking.set()
         self.click_thread = threading.Thread(target=self._click_loop, daemon=True)
         self.click_thread.start()
+        self._ui(self._clicking_status_ui)
+
+    def _clicking_status_ui(self):
+        self.status_var.set(f"Klickar... ({self.cps_var.get()} CPS)")
+        self._set_lamp(OK)
 
     def _click_loop(self):
-        output = self.output_var.get().lower()
+        output = self.runtime_output
         while self.clicking.is_set():
-            interval = max(1.0 / max(self.cps_var.get(), 1), 0.002)
-            self.backend.click(output)
+            cps = max(self.runtime_cps, 1)
+            interval = max(1.0 / cps, 0.002)
+            try:
+                self.backend.click(output)
+            except Exception:
+                self._stop_clicking()
+                return
             time.sleep(interval)
 
     def _stop_clicking(self):
-        self.clicking.clear()
+        with self._click_lock:
+            self.clicking.clear()
+        self._ui(self._idle_status_ui)
+
+    def _idle_status_ui(self):
         self.status_var.set("Inaktiv")
         self._set_lamp(IDLE)
 
@@ -800,13 +894,23 @@ class MattisClickerApp:
 
     def _on_close(self):
         self._stop_clicking()
+        self.recording = False
+        if self.record_timer:
+            try:
+                self.root.after_cancel(self.record_timer)
+            except tk.TclError:
+                pass
+            self.record_timer = None
         self._save_config()
         if self.backend:
             try:
                 self.backend.stop()
             except Exception:
                 pass
+        if self.click_thread and self.click_thread.is_alive():
+            self.click_thread.join(timeout=0.5)
         self.root.quit()
+        self.root.destroy()
 
 
 if __name__ == "__main__":
