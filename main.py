@@ -30,7 +30,7 @@ except ImportError:
 MODIFIER_NAMES = {"ctrl", "alt", "shift"}
 
 CPS_MIN = 1
-CPS_MAX = 500
+CPS_MAX = 250
 
 OUTPUT_OPTIONS = ["Left", "Right", "Middle"]
 

@@ -11,7 +11,7 @@ Python). Appen väljer automatiskt rätt backend:
 
 ## Funktioner
 
-- Justera CPS från 1 till 500, antingen med reglaget **eller** genom att skriva
+- Justera CPS från 1 till 250, antingen med reglaget **eller** genom att skriva
   ett exakt antal i textrutan bredvid.
 - **Rebinda aktiveringsknappen**: klicka på knappen "Aktivering" i appen och
   tryck sedan på tangenten eller musknappen du vill använda (Esc avbryter).
