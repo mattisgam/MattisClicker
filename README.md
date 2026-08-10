@@ -32,7 +32,8 @@ Det finns två sätt att dela med sig:
 ### Alternativ 1: Färdig `.exe` (enklast, inget Python behövs)
 
 1. Skapa en GitHub-tag, till exempel `v1.0.0`, och pusha den. GitHub bygger då
-   automatiskt en Windows-release med en enda fil: `MattisClicker.exe`.
+   automatiskt en release med `MattisClicker.exe` för Windows och
+   `MattisClicker-linux` för Linux.
    Du kan också starta bygget manuellt under **Actions → Bygg Windows-exe**.
 2. Ladda ner `MattisClicker.exe` från releasen eller från workflow-körningens
    artifact.
