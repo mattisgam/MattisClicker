@@ -31,13 +31,18 @@ Det finns två sätt att dela med sig:
 
 ### Alternativ 1: Färdig `.exe` (enklast, inget Python behövs)
 
-1. Bygg `.exe` **på en Windows-dator** (PyInstaller kan bara bygga för samma OS):
+1. Skapa en GitHub-tag, till exempel `v1.0.0`, och pusha den. GitHub bygger då
+   automatiskt en Windows-release med en enda fil: `MattisClicker.exe`.
+   Du kan också starta bygget manuellt under **Actions → Bygg Windows-exe**.
+2. Ladda ner `MattisClicker.exe` från releasen eller från workflow-körningens
+   artifact.
+3. Alternativt kan du bygga `.exe` **på en Windows-dator** (PyInstaller kan bara bygga för samma OS):
    ```
    pip install -r requirements.txt pyinstaller
    build_windows.bat
    ```
-2. Filen `dist\MattisClicker.exe` dyker upp.
-3. Skicka bara den filen till kompisarna. De **dubbelklickar på den** och den
+4. Filen `dist\MattisClicker.exe` dyker upp.
+5. Skicka bara den filen till kompisarna. De **dubbelklickar på den** och den
    bara funkar – ingen installation behövs.
    > OBS: Windows och antivirus kan varna för okända exe-filer. Det är normalt
    > för egenkompilerade program; kompisen väljer "Kör ändå".
