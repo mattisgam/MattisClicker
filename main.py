@@ -294,7 +294,7 @@ class MattisClickerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("MattisClicker")
-        self.root.geometry("500x730")
+        self.root.geometry("500x620")
         self.root.resizable(False, False)
         self.root.configure(bg=BG)
 
@@ -525,14 +525,11 @@ class MattisClickerApp:
         self.bind_button = ttk.Button(bind_card, text=display_binding(self.binding), style="Accent.TButton", command=self._start_recording)
         self.bind_button.pack(fill="x", padx=14, pady=(0, 12))
 
-        # ---- Klickknapp-kort ----
-        out_card = self._build_card(frame, "KLICKKNAPP")
-        self._add_option(out_card, "Vilken knapp ska klickas:", self.output_var, OUTPUT_OPTIONS)
-
-        # ---- Läge-kort ----
-        mode_card = self._build_card(frame, "LÄGE")
-        mode_row = tk.Frame(mode_card, bg=CARD)
-        mode_row.pack(fill="x", padx=14, pady=(4, 12))
+        # ---- Kontroller-kort ----
+        controls_card = self._build_card(frame, "KONTROLLER")
+        self._add_option(controls_card, "Klickknapp", self.output_var, OUTPUT_OPTIONS)
+        mode_row = tk.Frame(controls_card, bg=CARD)
+        mode_row.pack(fill="x", padx=14, pady=(0, 12))
         ttk.Label(mode_row, text="Håll ned för att klicka", style="Field.TLabel").pack(side="left")
         self._make_switch(mode_row, self.hold_mode_var).pack(side="right")
 
@@ -559,69 +556,43 @@ class MattisClickerApp:
         self.bind_button.config(text=text or "Klicka för att spela in")
 
     def _make_switch(self, parent, variable):
-        """Modern toggle (canvas-switch) – omedelbar, med hover/press-feedback."""
-        knob_diameter = 20
-        switch = tk.Canvas(parent, width=44, height=24, bg=CARD, highlightthickness=0, cursor="hand2")
+        """En enkel, tydlig svartvit toggle utan extra grafik."""
+        return tk.Checkbutton(
+            parent,
+            text="På" if variable.get() else "Av",
+            variable=variable,
+            onvalue=True,
+            offvalue=False,
+            indicatoron=False,
+            width=4,
+            padx=8,
+            pady=3,
+            bg=ACCENT if variable.get() else FIELD,
+            fg=BG if variable.get() else TEXT,
+            activebackground=ACCENT_HOVER,
+            activeforeground=BG,
+            selectcolor=ACCENT,
+            relief="flat",
+            overrelief="flat",
+            highlightthickness=1,
+            highlightbackground=BORDER,
+            highlightcolor=ACCENT,
+            cursor="hand2",
+            font=(FONT_FAMILY, 9, "bold"),
+            command=lambda: self._update_switch_text(variable),
+        )
 
-        state = {"hover": False, "pressed": False}
-        KNOB_OFF = "#777777"
-        KNOB_ON = "#0b0b0b"
-        SHADOW = "#000000"
-        TRACK_IN = "#0b0b0b"
+    def _update_switch_text(self, variable):
+        """Uppdaterar toggle-knappens text och kontrast efter klick."""
+        for child in self.root.winfo_children():
+            self._update_switch_in(child, variable)
 
-        def draw_track(on):
-            base = ACCENT if on else FIELD
-            inner = TRACK_IN if on else FIELD
-            switch.delete("track")
-            switch.create_oval(2, 4, 22, 24, fill=base, outline=base, tags="track")
-            switch.create_oval(24, 4, 44, 24, fill=base, outline=base, tags="track")
-            switch.create_rectangle(12, 4, 32, 24, fill=base, outline=base, tags="track")
-            switch.create_oval(5, 7, 21, 21, fill=inner, outline="", tags="track")
-            switch.create_oval(25, 7, 41, 21, fill=inner, outline="", tags="track")
-            switch.create_rectangle(15, 7, 31, 21, fill=inner, outline="", tags="track")
-
-        def draw_knob(x, on):
-            base = KNOB_ON if on else KNOB_OFF
-            # Hover-effekten hålls svartvit; layouten förblir lugn och tydlig.
-            shadow_y = 6 if state["pressed"] else 5
-            dy = 1 if state["pressed"] else 0
-            switch.delete("knob")
-            switch.create_oval(x + 1, shadow_y, x + knob_diameter + 1, shadow_y + knob_diameter, fill=SHADOW, outline="", tags="knob")
-            switch.create_oval(x, 4 + dy, x + knob_diameter, 24 + dy, fill=base, outline="", tags="knob")
-            gloss = base
-            switch.create_oval(x + 5, 6 + dy, x + 15, 13 + dy, fill=gloss, outline="", tags="knob")
-
-        def redraw(*_args):
+    def _update_switch_in(self, widget, variable):
+        if isinstance(widget, tk.Checkbutton) and str(widget.cget("variable")) == str(variable):
             on = bool(variable.get())
-            x = knob_diameter if on else 0.0
-            draw_track(on)
-            draw_knob(x, on)
-
-        def on_enter(event):
-            state["hover"] = True
-            redraw()
-
-        def on_leave(event):
-            state["hover"] = False
-            state["pressed"] = False
-            redraw()
-
-        def on_press(event):
-            state["pressed"] = True
-            redraw()
-
-        def on_release(event):
-            state["pressed"] = False
-            redraw()
-
-        switch.bind("<Enter>", on_enter)
-        switch.bind("<Leave>", on_leave)
-        switch.bind("<ButtonPress-1>", on_press)
-        switch.bind("<ButtonRelease-1>", on_release)
-        switch.bind("<Button-1>", lambda event: variable.set(not bool(variable.get())))
-        variable.trace_add("write", redraw)
-        redraw()
-        return switch
+            widget.config(text="På" if on else "Av", bg=ACCENT if on else FIELD, fg=BG if on else TEXT)
+        for child in widget.winfo_children():
+            self._update_switch_in(child, variable)
 
     def _add_option(self, row, label_text, variable, values):
         """Segmenterad kontroll för vilken musknapp som ska klickas."""
