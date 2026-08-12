@@ -34,39 +34,21 @@ CPS_MAX = 250
 
 OUTPUT_OPTIONS = ["Left", "Right", "Middle"]
 
-# ---- Moderna UI-färger (mörkt tema) ----
-BG = "#0f1115"
-CARD = "#171a21"
-CARD2 = "#1d212b"
-FIELD = "#232733"
-BORDER = "#2e3342"
-TEXT = "#eef1f8"
-MUTED = "#8b93a7"
-ACCENT = "#4f8cff"
-ACCENT_HOVER = "#6ba2ff"
-ACCENT_PRESS = "#3971e0"
-OK = "#4ade80"
-IDLE = "#525a6b"
+# ---- UI-färger: svart, vitt och neutrala gråtoner ----
+BG = "#0b0b0b"
+CARD = "#151515"
+CARD2 = "#202020"
+FIELD = "#292929"
+BORDER = "#3d3d3d"
+TEXT = "#f5f5f5"
+MUTED = "#a6a6a6"
+ACCENT = "#f5f5f5"
+ACCENT_HOVER = "#ffffff"
+ACCENT_PRESS = "#cfcfcf"
+OK = "#ffffff"
+IDLE = "#666666"
 FONT_FAMILY = "Cantarell"
 
-
-def hex_blend(color1, color2, t):
-    """Interpolerar mellan två hex-färger. t=0 ger color1, t=1 ger color2."""
-    t = max(0.0, min(1.0, t))
-
-    def parse(hex_color):
-        hex_color = hex_color.lstrip("#")
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-        return r, g, b
-
-    r1, g1, b1 = parse(color1)
-    r2, g2, b2 = parse(color2)
-    r = int(r1 + (r2 - r1) * t)
-    g = int(g1 + (g2 - g1) * t)
-    b = int(b1 + (b2 - b1) * t)
-    return f"#{r:02x}{g:02x}{b:02x}"
 
 MODIFIER_DISPLAY = {
     "ctrl": "Ctrl",
@@ -312,7 +294,7 @@ class MattisClickerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("MattisClicker")
-        self.root.geometry("460x540")
+        self.root.geometry("500x730")
         self.root.resizable(False, False)
         self.root.configure(bg=BG)
 
@@ -416,12 +398,12 @@ class MattisClickerApp:
         style.configure(".", font=(FONT_FAMILY, 10), background=BG, foreground=TEXT)
 
         # Rubriker
-        style.configure("Brand.TLabel", background=BG, foreground=TEXT, font=(FONT_FAMILY, 20, "bold"))
-        style.configure("Tagline.TLabel", background=BG, foreground=MUTED, font=(FONT_FAMILY, 9))
-        style.configure("Section.TLabel", background=CARD, foreground=TEXT, font=(FONT_FAMILY, 10, "bold"))
-        style.configure("Field.TLabel", background=CARD, foreground=MUTED, font=(FONT_FAMILY, 9))
-        style.configure("Value.TLabel", background=CARD, foreground=ACCENT_HOVER, font=(FONT_FAMILY, 18, "bold"))
-        style.configure("Status.TLabel", background=CARD, foreground=TEXT, font=(FONT_FAMILY, 10, "bold"))
+        style.configure("Brand.TLabel", background=BG, foreground=TEXT, font=(FONT_FAMILY, 24, "bold"))
+        style.configure("Tagline.TLabel", background=BG, foreground=MUTED, font=(FONT_FAMILY, 10))
+        style.configure("Section.TLabel", background=CARD, foreground=TEXT, font=(FONT_FAMILY, 9, "bold"))
+        style.configure("Field.TLabel", background=CARD, foreground=MUTED, font=(FONT_FAMILY, 10))
+        style.configure("Value.TLabel", background=CARD, foreground=TEXT, font=(FONT_FAMILY, 22, "bold"))
+        style.configure("Status.TLabel", background=CARD, foreground=TEXT, font=(FONT_FAMILY, 12, "bold"))
 
         # Primär knapp (binda/nu)
         style.configure(
@@ -431,7 +413,7 @@ class MattisClickerApp:
             bordercolor=ACCENT,
             lightcolor=ACCENT,
             darkcolor=ACCENT,
-            padding=(14, 9),
+            padding=(14, 11),
             font=(FONT_FAMILY, 13, "bold"),
         )
         style.map(
@@ -446,11 +428,11 @@ class MattisClickerApp:
         style.configure(
             "Go.TButton",
             background=CARD2,
-            foreground=OK,
+            foreground=TEXT,
             bordercolor=BORDER,
             lightcolor=BORDER,
             darkcolor=BORDER,
-            padding=(12, 8),
+            padding=(14, 9),
             font=(FONT_FAMILY, 11, "bold"),
         )
         style.map(
@@ -459,17 +441,17 @@ class MattisClickerApp:
             bordercolor=[("pressed", ACCENT_PRESS), ("active", ACCENT_HOVER)],
             lightcolor=[("active", BORDER)],
             darkcolor=[("active", BORDER)],
-            foreground=[("disabled", MUTED), ("pressed", "#8bf7b0"), ("active", "#8bf7b0")],
+            foreground=[("disabled", MUTED), ("pressed", TEXT), ("active", TEXT)],
         )
 
         # Reglage
         style.configure(
             "Accent.Horizontal.TScale",
             background=CARD,
-            troughcolor=FIELD,
+            troughcolor="#555555",
             bordercolor=BORDER,
-            lightcolor=ACCENT,
-            darkcolor=ACCENT,
+            lightcolor=TEXT,
+            darkcolor=TEXT,
             sliderlength=22,
             sliderrelief="flat",
         )
@@ -495,29 +477,30 @@ class MattisClickerApp:
         style.map(
             "TSpinbox",
             fieldbackground=[("focus", CARD2)],
-            bordercolor=[("focus", ACCENT)],
-            arrowcolor=[("active", ACCENT_HOVER)],
+            bordercolor=[("focus", BORDER)],
+            arrowcolor=[("active", TEXT)],
         )
 
         # Karta (kort)
         style.configure("TK_Frame_Card", background=CARD)
 
     def _build_card(self, parent, title):
-        card = tk.Frame(parent, bg=CARD, highlightthickness=1, highlightbackground=BORDER, highlightcolor=BORDER)
-        card.pack(fill="x", pady=(0, 10))
-        ttk.Label(card, text=title, style="Section.TLabel").pack(anchor="w", padx=14, pady=(10, 2))
+        card = tk.Frame(parent, bg=CARD, highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT)
+        card.pack(fill="x", padx=24, pady=(0, 10))
+        tk.Frame(card, bg=ACCENT, height=2).pack(fill="x")
+        ttk.Label(card, text=title, style="Section.TLabel").pack(anchor="w", padx=16, pady=(11, 3))
         return card
 
     def _build_ui(self):
         frame = tk.Frame(self.root, bg=BG)
         frame.pack(fill="both", expand=True)
 
-        # Header med accentlist
+        # Tunn vit linje ger appen en tydlig, modern startpunkt.
         tk.Frame(frame, bg=ACCENT, height=3).pack(fill="x")
         header = tk.Frame(frame, bg=BG)
-        header.pack(fill="x", padx=16, pady=(14, 12))
+        header.pack(fill="x", padx=24, pady=(24, 20))
         ttk.Label(header, text="MattisClicker", style="Brand.TLabel").pack(anchor="w")
-        ttk.Label(header, text="Autoclicker för Windows & Linux", style="Tagline.TLabel").pack(anchor="w", pady=(2, 0))
+        ttk.Label(header, text="AUTOKLICKARE  /  WINDOWS + LINUX", style="Tagline.TLabel").pack(anchor="w", pady=(5, 0))
 
         # ---- CPS-kort ----
         cps_card = self._build_card(frame, "KLICKHASTIGHET")
@@ -537,7 +520,8 @@ class MattisClickerApp:
 
         # ---- Aktivering-kort ----
         bind_card = self._build_card(frame, "AKTIVERING")
-        ttk.Label(bind_card, text="Klicka för att spela in en tangent, musknapp eller kombination (t.ex. Ctrl+Alt+Shift+F5).", style="Field.TLabel", wraplength=400).pack(anchor="w", padx=14, pady=(4, 10))
+        ttk.Label(bind_card, text="Välj tangenten eller kombinationen som startar klickandet.", style="Field.TLabel", wraplength=440).pack(anchor="w", padx=14, pady=(4, 2))
+        ttk.Label(bind_card, text="Exempel: Ctrl+Alt+Shift+F5", style="Field.TLabel", wraplength=440).pack(anchor="w", padx=14, pady=(0, 10))
         self.bind_button = ttk.Button(bind_card, text=display_binding(self.binding), style="Accent.TButton", command=self._start_recording)
         self.bind_button.pack(fill="x", padx=14, pady=(0, 12))
 
@@ -564,7 +548,7 @@ class MattisClickerApp:
         self.info_label = ttk.Label(status_card, textvariable=self.info_var, style="Field.TLabel", wraplength=400, justify="left")
         self.info_label.pack(anchor="w", padx=14, pady=(0, 10))
 
-        ttk.Button(frame, text="Avsluta", style="Go.TButton", command=self._on_close).pack(anchor="e", padx=16, pady=(0, 14))
+        ttk.Button(frame, text="Avsluta", style="Go.TButton", command=self._on_close).pack(anchor="e", padx=24, pady=(2, 20))
 
         # Spara ALLA inställningar när de ändras (cps, knappval, läge)
         for var in (self.cps_var, self.output_var, self.hold_mode_var):
@@ -580,14 +564,14 @@ class MattisClickerApp:
         switch = tk.Canvas(parent, width=44, height=24, bg=CARD, highlightthickness=0, cursor="hand2")
 
         state = {"hover": False, "pressed": False}
-        KNOB_OFF = "#b6bece"
-        KNOB_ON = "#ffffff"
-        SHADOW = "#0c0e13"
-        TRACK_IN = "#3b78d9"
+        KNOB_OFF = "#777777"
+        KNOB_ON = "#0b0b0b"
+        SHADOW = "#000000"
+        TRACK_IN = "#0b0b0b"
 
         def draw_track(on):
             base = ACCENT if on else FIELD
-            inner = TRACK_IN if on else "#1b1f29"
+            inner = TRACK_IN if on else FIELD
             switch.delete("track")
             switch.create_oval(2, 4, 22, 24, fill=base, outline=base, tags="track")
             switch.create_oval(24, 4, 44, 24, fill=base, outline=base, tags="track")
@@ -598,16 +582,13 @@ class MattisClickerApp:
 
         def draw_knob(x, on):
             base = KNOB_ON if on else KNOB_OFF
-            if state["hover"]:
-                base = hex_blend(base, "#ffffff", 0.30)
-            if state["pressed"]:
-                base = hex_blend(base, "#000000", 0.25)
+            # Hover-effekten hålls svartvit; layouten förblir lugn och tydlig.
             shadow_y = 6 if state["pressed"] else 5
             dy = 1 if state["pressed"] else 0
             switch.delete("knob")
             switch.create_oval(x + 1, shadow_y, x + knob_diameter + 1, shadow_y + knob_diameter, fill=SHADOW, outline="", tags="knob")
             switch.create_oval(x, 4 + dy, x + knob_diameter, 24 + dy, fill=base, outline="", tags="knob")
-            gloss = hex_blend(base, "#ffffff", 0.45)
+            gloss = base
             switch.create_oval(x + 5, 6 + dy, x + 15, 13 + dy, fill=gloss, outline="", tags="knob")
 
         def redraw(*_args):
@@ -663,9 +644,14 @@ class MattisClickerApp:
                 fg=MUTED,
                 font=(FONT_FAMILY, 10, "bold"),
                 cursor="hand2",
+                highlightthickness=1,
+                highlightbackground=BORDER,
+                highlightcolor=BORDER,
             )
             btn.grid(row=0, column=index, padx=(0 if index == 0 else 1, 0))
             btn.bind("<Button-1>", lambda e, v=value: self._set_output(seg, buttons, v))
+            btn.bind("<Enter>", lambda e, v=value: self._set_output_hover(buttons, v, True))
+            btn.bind("<Leave>", lambda e, v=value: self._set_output_hover(buttons, v, False))
             buttons[value] = btn
         self._set_output(seg, buttons, variable.get(), render_only=True)
 
@@ -676,7 +662,18 @@ class MattisClickerApp:
             if name == value:
                 btn.config(bg=ACCENT, fg=BG)
             else:
-                btn.config(bg=FIELD, fg=MUTED)
+                btn.config(bg=FIELD, fg=TEXT)
+
+    def _set_output_hover(self, buttons, hovered, active):
+        """Ger de segmenterade musknapparna en tydlig hover-state."""
+        selected = self.output_var.get()
+        for name, btn in buttons.items():
+            if name == selected:
+                btn.config(bg=ACCENT, fg=BG)
+            elif active and name == hovered:
+                btn.config(bg="#444444", fg=TEXT)
+            else:
+                btn.config(bg=FIELD, fg=TEXT)
 
     def _on_slider_cps(self, value):
         self.cps_var.set(max(CPS_MIN, min(CPS_MAX, int(float(value)))))
